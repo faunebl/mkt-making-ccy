@@ -1,0 +1,10 @@
+#!/bin/sh
+'''exec' "/Users/raphaelcorchia/Documents/Pro/Dauphine/Master 203/M2/S2/Electronic Markets/Project/mkt-making-ccy/elecmktvenv/bin/python3.11" "$0" "$@"
+' '''
+# -*- coding: utf-8 -*-
+import re
+import sys
+from numpy.f2py.f2py2e import main
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(main())

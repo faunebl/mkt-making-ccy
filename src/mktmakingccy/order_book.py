@@ -54,11 +54,11 @@ class OrderBook:
         order_book = asks_indexed.join(bids_indexed, on="index", how="outer").drop("index")
 
         # Ensure correct column order & type handling
-        return order_book.with_columns([
-            pl.col("size_ask").cast(pl.Float64),
-            pl.col("ask").cast(pl.Float64),
+        return order_book.select(
+            pl.col("size_bid").cast(pl.Float64),
             pl.col("bid").cast(pl.Float64),
-            pl.col("size_bid").cast(pl.Float64)
-        ]).drop('index_right')
+            pl.col("ask").cast(pl.Float64),
+            pl.col("size_ask").cast(pl.Float64)
+        )
 
 

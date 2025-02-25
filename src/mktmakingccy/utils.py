@@ -1,13 +1,13 @@
 from datetime import datetime
 
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 def simulate_fair_price(
-    start_timestamp: datetime,
-    end_timestamp: datetime,
-    step_size_in_seconds: int,
+    start_timestamp: datetime = datetime(2025,1,1),
+    end_timestamp: datetime = datetime(2026,1,1),
+    step_size_in_seconds: int = 3600,
     mu: float = 0.00001,
     sigma: float = 0.005,
     mu_jump: float = 0.005,
@@ -17,7 +17,8 @@ def simulate_fair_price(
     mu_X: float = 0,
     sigma_X: float = 0.01,
     initial_price: float = 1.0,
-) -> pd.DataFrame:
+    min_value: float = 0.001
+) -> pl.DataFrame:
     """Function to simulate and generate time series of the evolution of the price of an emerging currency against USD.
 
     Args:
@@ -37,9 +38,9 @@ def simulate_fair_price(
     Returns:
         pd.DataFrame: The generated time series
     """
-
-    timestamps = pd.date_range(
-        start=start_timestamp, end=end_timestamp, freq=f"{step_size_in_seconds}S"
+    
+    timestamps = pl.datetime_range(
+        start=start_timestamp, end=end_timestamp, interval=f"{step_size_in_seconds}s", eager=True
     )
     N = len(timestamps)
     dt = step_size_in_seconds / (24 * 3600)  # Convert to fraction of a day
@@ -60,6 +61,6 @@ def simulate_fair_price(
             J_t = 0
 
         # Price evolution (GBM + Jump + Mean Reversion)
-        prices[t] = max(prices[t - 1] * (1 + mu * dt + sigma * dW) + J_t + X_t, 0.00001)
+        prices[t] = max(prices[t - 1] * (1 + mu * dt + sigma * dW) + J_t + X_t, min_value)
 
-    return pd.DataFrame({"Timestamp": timestamps, "Fair Price": prices})
+    return pl.DataFrame({"Timestamp": timestamps, "Fair Price": prices})

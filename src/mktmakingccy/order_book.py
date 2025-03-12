@@ -138,6 +138,16 @@ class OrderBook:
         )
 
     def delete_order(self, price: float, size: float, side: str):
+        """deletes a specific order from the order book
+
+        Args:
+            price (float): price of the order to delete
+            size (float): size of the order to delete
+            side (str): side of the order to delete. should be either 'bid' or 'ask'
+
+        Raises:
+            Exception: if the side is not correctly specified as 'bid' or 'ask'
+        """        
         side = side.strip().lower()
         if side != "bid" and side != "ask":
             raise Exception("Input a valid side argument : either 'bid' or 'ask'.")

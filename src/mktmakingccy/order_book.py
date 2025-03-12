@@ -137,6 +137,16 @@ class OrderBook:
             else (None, None)
         )
 
+    def delete_order(self, price: float, size: float, side: str):
+        side = side.strip().lower()
+        if side != "bid" and side != "ask":
+            raise Exception("Input a valid side argument : either 'bid' or 'ask'.")
+        
+        if side == 'ask':
+            self.asks = self.asks.filter((self.asks["ask"] != price) & (self.asks["size_ask"] != size)) #removing order
+        elif side == 'bid':
+            self.bids = self.bids.filter((self.bids["bid"] != price) & (self.bids["size_bid"] != size))
+
     def get_order_book(self) -> pl.DataFrame:
         """Returns the full order book as a Polars DataFrame with the correct column order."""
         # Add index columns for joining

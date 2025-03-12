@@ -1,7 +1,8 @@
 import polars as pl
 
+
 class OrderBook:
-    def __init__(self, n_levels: int):
+    def __init__(self, n_levels: int) -> None:
         """
         Initializes an order book with n price levels.
 
@@ -9,8 +10,76 @@ class OrderBook:
             n_levels (int): Max levels for both bid and ask sides.
         """
         self.n_levels = n_levels
-        self.bids = pl.DataFrame({"bid": [], "size_bid": []}).cast({"bid": pl.Float64, "size_bid": pl.Float64})
-        self.asks = pl.DataFrame({"ask": [], "size_ask": []}).cast({"ask": pl.Float64, "size_ask": pl.Float64})
+        self.bids = pl.DataFrame({"bid": [], "size_bid": []}).cast(
+            {"bid": pl.Float64, "size_bid": pl.Float64}
+        )
+        self.asks = pl.DataFrame({"ask": [], "size_ask": []}).cast(
+            {"ask": pl.Float64, "size_ask": pl.Float64}
+        )
+
+    def get_base_pricing(
+        self,
+        fair_price: float,
+        spread: float,
+        alpha: float = None,
+        bid_sizes: list[float] = None,
+        ask_sizes: list[float] = None,
+    ) -> pl.DataFrame:
+        """Generates the base pricing order book
+
+        Args:
+            fair_price (float): The actual fair price
+            spread (float): The bid-ask spread
+            alpha (float, optional): Parameter that adjust the mid and fair prices difference based on the liquidity. Defaults to None.
+            bid_sizes (list[float], optional): A list with all the bid sizes. Defaults to None.
+            ask_sizes (list[float], optional): A list with all the ask sizes. Defaults to None.
+
+        Returns:
+            pl.DataFrame: Return the order book
+        """
+        ## Define default parameters values ##
+        if bid_sizes is None:
+            bid_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
+        else:
+            bid_sizes_ok = bid_sizes.copy()
+        if ask_sizes is None:
+            ask_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
+        else:
+            ask_sizes_ok = ask_sizes.copy()
+        if alpha is None:
+            alpha_ok = (sum(ask_sizes_ok) - sum(bid_sizes_ok)) / (
+                sum(ask_sizes_ok) + sum(bid_sizes_ok)
+            )
+        else:
+            alpha_ok = alpha
+
+        # Compute Bid levels
+        bid_prices = [
+            fair_price * ((1 - alpha_ok * spread - spread / 2) ** (i + 1))
+            for i in range(self.n_levels)
+        ]
+        new_bids = pl.DataFrame({"bid": bid_prices, "size_bid": bid_sizes_ok}).cast(
+            {"bid": pl.Float64, "size_bid": pl.Float64}
+        )
+        self.bids = (
+            pl.concat([self.bids, new_bids], how="vertical")
+            .sort("bid", descending=True)
+            .head(self.n_levels)
+        )
+        # Compute Ask levels
+        ask_prices = [
+            fair_price * ((1 - alpha_ok * spread + spread / 2) ** (i + 1))
+            for i in range(self.n_levels)
+        ]
+        new_asks = pl.DataFrame({"ask": ask_prices, "size_ask": ask_sizes_ok}).cast(
+            {"ask": pl.Float64, "size_ask": pl.Float64}
+        )
+        self.asks = (
+            pl.concat([self.asks, new_asks], how="vertical")
+            .sort("ask")
+            .head(self.n_levels)
+        )
+        return self.get_order_book()
 
     def update_order(self, price: float, size: float, side: str):
         """
@@ -25,40 +94,64 @@ class OrderBook:
         size = float(size)
 
         if side == "bid":
-            self.bids = self.bids.filter(self.bids["bid"] != price)  # Remove old bid at the same price
+            self.bids = self.bids.filter(
+                self.bids["bid"] != price
+            )  # Remove old bid at the same price
             if size > 0:
-                new_order = pl.DataFrame({"bid": [price], "size_bid": [size]}).cast({"bid": pl.Float64, "size_bid": pl.Float64})
-                self.bids = pl.concat([self.bids, new_order], how="vertical").sort("bid", descending=True).head(self.n_levels)
+                new_order = pl.DataFrame({"bid": [price], "size_bid": [size]}).cast(
+                    {"bid": pl.Float64, "size_bid": pl.Float64}
+                )
+                self.bids = (
+                    pl.concat([self.bids, new_order], how="vertical")
+                    .sort("bid", descending=True)
+                    .head(self.n_levels)
+                )
 
         elif side == "ask":
-            self.asks = self.asks.filter(self.asks["ask"] != price)  # Remove old ask at the same price
+            self.asks = self.asks.filter(
+                self.asks["ask"] != price
+            )  # Remove old ask at the same price
             if size > 0:
-                new_order = pl.DataFrame({"ask": [price], "size_ask": [size]}).cast({"ask": pl.Float64, "size_ask": pl.Float64})
-                self.asks = pl.concat([self.asks, new_order], how="vertical").sort("ask").head(self.n_levels)
+                new_order = pl.DataFrame({"ask": [price], "size_ask": [size]}).cast(
+                    {"ask": pl.Float64, "size_ask": pl.Float64}
+                )
+                self.asks = (
+                    pl.concat([self.asks, new_order], how="vertical")
+                    .sort("ask")
+                    .head(self.n_levels)
+                )
 
     def get_best_bid(self):
         """Returns the best bid price and size."""
-        return (self.bids["bid"][0], self.bids["size_bid"][0]) if len(self.bids) else (None, None)
+        return (
+            (self.bids["bid"][0], self.bids["size_bid"][0])
+            if len(self.bids)
+            else (None, None)
+        )
 
     def get_best_ask(self):
         """Returns the best ask price and size."""
-        return (self.asks["ask"][0], self.asks["size_ask"][0]) if len(self.asks) else (None, None)
+        return (
+            (self.asks["ask"][0], self.asks["size_ask"][0])
+            if len(self.asks)
+            else (None, None)
+        )
 
-    def get_order_book(self):
+    def get_order_book(self) -> pl.DataFrame:
         """Returns the full order book as a Polars DataFrame with the correct column order."""
         # Add index columns for joining
         asks_indexed = self.asks.with_columns(pl.Series("index", range(len(self.asks))))
         bids_indexed = self.bids.with_columns(pl.Series("index", range(len(self.bids))))
 
         # Join on index to align rows
-        order_book = asks_indexed.join(bids_indexed, on="index", how="outer").drop("index")
+        order_book = asks_indexed.join(bids_indexed, on="index", how="outer").drop(
+            "index"
+        )
 
         # Ensure correct column order & type handling
         return order_book.select(
             pl.col("size_bid").cast(pl.Float64),
             pl.col("bid").cast(pl.Float64),
             pl.col("ask").cast(pl.Float64),
-            pl.col("size_ask").cast(pl.Float64)
+            pl.col("size_ask").cast(pl.Float64),
         )
-
-

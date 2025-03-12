@@ -43,6 +43,19 @@ class OrderBook:
     def get_best_ask(self):
         """Returns the best ask price and size."""
         return (self.asks["ask"][0], self.asks["size_ask"][0]) if len(self.asks) else (None, None)
+    
+    def delete_order(self, price: float, size: float, side: str):
+        side = side.strip().lower()
+        if side != "bid" and side != "ask":
+            raise Exception("Input a valid side argument : either 'bid' or 'ask'.")
+        
+        if side == 'ask':
+            self.asks = self.asks.filter((self.asks["ask"] != price) & (self.asks["size_ask"] != size)) #removing order
+        elif side == 'bid':
+            self.bids = self.bids.filter((self.bids["bid"] != price) & (self.bids["size_bid"] != size))
+    
+    def delete_best_ask(self):
+        return
 
     def get_order_book(self):
         """Returns the full order book as a Polars DataFrame with the correct column order."""

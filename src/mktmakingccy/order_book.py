@@ -133,7 +133,7 @@ class OrderBook:
                     .head(self.n_levels)
                 )
 
-    def get_best_bid(self):
+    def get_best_bid(self) -> tuple:
         """Returns the best bid price and size."""
         return (
             (self.bids["bid"][0], self.bids["size_bid"][0], self.bids["timestamp_bid"][0])
@@ -141,7 +141,7 @@ class OrderBook:
             else (None, None)
         )
 
-    def get_best_ask(self):
+    def get_best_ask(self) -> tuple:
         """Returns the best ask price and size."""
         return (
             (self.asks["ask"][0], self.asks["size_ask"][0], self.asks["timestamp_ask"][0])

@@ -1,10 +1,10 @@
 from order_book import OrderBook
 from datetime import datetime
 
-#! to do : better history management ?
+#TODO : better history management ?
 
 class Trade:
-    def __init__(self, size: float, side: str, history: list):
+    def __init__(self, size: float, side: str, history: list=None):
         self.size = size
         if side.strip().lower() == "buy" or side.strip().lower() == "sell":
             self.side = side.strip().lower()
@@ -13,7 +13,7 @@ class Trade:
         if history is None:
             self.history = [] #instantiate with empty history
         else:
-            self.history = history #that way we can keep the history from all trades and pass them into the next trade 
+            self.history = history #that way we can keep the history from all trades and pass them into the next trade in order to track the pnl
 
     def update_orderbook_with_trade(self, orderbook: OrderBook):
         if self.side == "buy":

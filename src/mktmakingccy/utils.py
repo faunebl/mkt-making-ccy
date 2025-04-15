@@ -68,20 +68,45 @@ def simulate_fair_price(
             prices[t - 1] * (1 + mu * dt + sigma * dW) + J_t + X_t, min_value
         )
 
-    return pl.DataFrame({"Timestamp": timestamps, "Fair Price": prices})
+    return pl.DataFrame({"timestamp": timestamps, "Fair Price": prices})
 
 
 def track_pnl(
-    start_record_time: datetime,
-    end_record_time: datetime,
     historical_fair_price: pl.DataFrame,
     historical_trade: pl.DataFrame,
+    inventory,
+    start_record_time: datetime = None,
+    end_record_time: datetime = None,
 ) -> pl.DataFrame:
-    # TODO change the column name "date"
-    masked_historical_fair_price = historical_fair_price.filter(
-        pl.col("date") >= start_record_time & pl.col("date") <= end_record_time
-    )
+    if start_record_time is None:
+        start_record_time = historical_trade[0, "timestamp"]
+    if end_record_time is None:
+        end_record_time = historical_trade[-1, "timestamp"]
     masked_historical_trade = historical_trade.filter(
-        pl.col("date") >= start_record_time & pl.col("date") <= end_record_time
+        pl.col("timestamp").is_between(start_record_time, end_record_time)
     )
-    
+    total_pnl = 0
+    records = []
+
+    for trade_row in masked_historical_trade.iter_rows():
+        action = trade_row[0]
+        trade_price = trade_row[1]
+        quantity = trade_row[2]
+        trade_date = trade_row[3]
+        closest_price_row = (
+            historical_fair_price.filter(pl.col("timestamp") <= trade_date)
+            .sort("timestamp", descending=True)
+            .head(1)
+        )
+        price = closest_price_row[0, "Fair Price"]
+
+        sign = 1 if action == "buy" else -1
+        inventory -= sign * quantity
+        pnl = sign * quantity * (trade_price - price)
+        total_pnl += pnl
+
+        records.append(
+            {"timestamp": trade_date, "pnl": total_pnl, "inventory": inventory}
+        )
+    result_df = pl.DataFrame(records)
+    return result_df

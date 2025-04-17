@@ -7,12 +7,13 @@ from dataclasses import dataclass, field
 class TradeHistory:
     trades: List[Dict[str, Any]] = field(default_factory=list)
 
-    def log(self, side: str, price: float, size: float):
+    def log(self, side: str, price: float, size: float, client: bool):
         self.trades.append({
             "timestamp": datetime.now(),
             "side": side,
             "price": price,
             "size": size,
+            "client": client
         })
 
 history = TradeHistory()
@@ -33,13 +34,14 @@ class Trade:
             if self.size > max_size:
                 raise Exception(f'Size is bigger than what is available in the order book. Please input a size inferior to {max_size}')
             
-            best_price, best_size, _ = orderbook.get_best_ask() # you buy at the ask and sell at the bid
+            best_price, best_size, _, client = orderbook.get_best_ask() # you buy at the ask and sell at the bid
 
             if self.size <= best_size:
                 orderbook.update_order(
                     price = best_price, 
                     size = best_size - self.size, 
-                    side = 'ask')
+                    side = 'ask',
+                    client = client)
             else:
                 orderbook.delete_order(price=best_price, size=best_size, side='ask') #delete best order
                 self.size -= best_size #updating the size
@@ -51,24 +53,25 @@ class Trade:
             if self.size > max_size:
                 raise Exception(f'Size is bigger than what is available in the order book. Please input a size inferior to {max_size}')
             
-            best_price, best_size, _ = orderbook.get_best_bid()
+            best_price, best_size, _, client = orderbook.get_best_bid()
 
             if self.size <= best_size:
                 orderbook.update_order(
                     price = best_price, 
                     size = best_size - self.size, 
-                    side = 'bid') #timestamp updates automatically
+                    side = 'bid',
+                    client= client) #timestamp updates automatically
             else:
                 orderbook.delete_order(price=best_price, size=best_size, side='bid')
                 self.size -= best_size
                 orderbook = self.update_orderbook_with_trade()
 
         #adding to trade history
-        history.log(side=self.side, price=best_price, size=self.size)
+        history.log(side=self.side, price=best_price, size=self.size, client=client)
 
         return orderbook
     
-class MarketOrder():
+class MarketOrder:
     def __init__(self, size: float, side: Literal['bid', 'ask']):
         self.size = size
         if side.strip().lower() == "ask" or side.strip().lower() == "bid":
@@ -78,7 +81,7 @@ class MarketOrder():
     def post_market_order(self, orderbook: OrderBook, price: float = None):
         if self.side == "bid":
 
-            best_price, best_size, _ = orderbook.get_best_ask() # you buy at the ask and sell at the bid
+            best_price, best_size, _, client = orderbook.get_best_ask() # you buy at the ask and sell at the bid
 
             if (best_price is None) and (best_size is None): #there are no asks in the order book
                 if price is None:
@@ -87,7 +90,8 @@ class MarketOrder():
                 orderbook.update_order(
                     price=price,
                     size=self.size,
-                    side='bid'
+                    side='bid',
+                    client = True
                 ) # we post a new bid 
                 #no trade to log here until that order is lifted 
 
@@ -95,17 +99,18 @@ class MarketOrder():
                     orderbook.update_order(
                         price = best_price, 
                         size = best_size - self.size, 
-                        side = 'ask')
+                        side = 'ask',
+                        client = client)
                     #logging the trade
-                    history.log(side='buy', price=best_price, size=best_size)
+                    history.log(side='buy', price=best_price, size=best_size, client=client)
             elif self.size > best_size:
                 orderbook.delete_order(price=best_price, size=best_size, side='ask') #delete best order
-                history.log(side='buy', price=best_price, size=best_size) #logging the trade
+                history.log(side='buy', price=best_price, size=best_size, client=client) #logging the trade
                 self.size -= best_size #updating the size
                 orderbook = self.post_market_order(orderbook, best_price) #calling the function recursively
 
         elif self.side == "ask": # same thing but with bid
-            best_price, best_size, _ = orderbook.get_best_bid() # you buy at the ask and sell at the bid
+            best_price, best_size, _, client = orderbook.get_best_bid() # you buy at the ask and sell at the bid
 
             if (best_price is None) and (best_size is None):
                 if price is None:
@@ -114,7 +119,8 @@ class MarketOrder():
                 orderbook.update_order(
                     price=price,
                     size=self.size,
-                    side='ask'
+                    side='ask',
+                    client=True
                 ) # we post a new ask 
                 #no trade to log here until that order is lifted 
 
@@ -122,14 +128,19 @@ class MarketOrder():
                     orderbook.update_order(
                         price = best_price, 
                         size = best_size - self.size, 
-                        side = 'bid')
+                        side = 'bid',
+                        client=client)
                     #logging the trade
-                    history.log(side='sell', price=best_price, size=best_size)
+                    history.log(side='sell', price=best_price, size=best_size, client=client)
             elif self.size > best_size:
                 orderbook.delete_order(price=best_price, size=best_size, side='bid') #delete best order
-                history.log(side='sell', price=best_price, size=best_size) #logging the trade
+                history.log(side='sell', price=best_price, size=best_size, client=client) #logging the trade
                 self.size -= best_size #updating the size
                 orderbook = self.post_market_order(orderbook, best_price) #calling the function recursively
 
 
         return orderbook
+    
+class LimitOrder(MarketOrder):
+    def __init__(self, size, side):
+        super().__init__(size, side)

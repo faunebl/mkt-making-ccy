@@ -2,7 +2,6 @@ import polars as pl
 from typing import Literal
 from datetime import datetime
 
-#! ajouter : une colonne timestamp
 class OrderBook:
     def __init__(self, n_levels: int) -> None:
         """

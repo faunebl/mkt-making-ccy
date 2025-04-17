@@ -81,6 +81,8 @@ class MarketOrder():
             best_price, best_size, _ = orderbook.get_best_ask() # you buy at the ask and sell at the bid
 
             if (best_price is None) and (best_size is None): #there are no asks in the order book
+                if price is None:
+                    raise Exception("price argument cannot be None if there are no matching orders in the order book. Please provide a price.")
                 print(f"We have reached the end of the order book. Posting order of size {self.size}")
                 orderbook.update_order(
                     price=price,
@@ -106,6 +108,8 @@ class MarketOrder():
             best_price, best_size, _ = orderbook.get_best_bid() # you buy at the ask and sell at the bid
 
             if (best_price is None) and (best_size is None):
+                if price is None:
+                    raise Exception("price argument cannot be None if there are no matching orders in the order book. Please provide a price.")
                 print(f"We have reached the end of the order book. Posting order of size {self.size}")
                 orderbook.update_order(
                     price=price,

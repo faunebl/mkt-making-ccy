@@ -39,6 +39,7 @@ class OrderBook:
         Returns:
             pl.DataFrame: Return the order book
         """
+        #TODO Change the bid/ask computation by adding a leverage on the size of the level
         #Define default parameter values
         if bid_sizes is None:
             bid_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
@@ -48,6 +49,7 @@ class OrderBook:
             ask_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
         else:
             ask_sizes_ok = ask_sizes.copy()
+        #TODO Alpha should be a list with a different value for each level linked to the size
         if alpha is None:
             alpha_ok = (sum(ask_sizes_ok) - sum(bid_sizes_ok)) / (
                 sum(ask_sizes_ok) + sum(bid_sizes_ok)
@@ -56,6 +58,7 @@ class OrderBook:
             alpha_ok = alpha
 
         # Compute Bid levels
+        #TODO prices should depend of alpha list and not the level value
         bid_prices = [
             fair_price * ((1 - alpha_ok * spread - spread / 2) ** (i + 1))
             for i in range(self.n_levels)

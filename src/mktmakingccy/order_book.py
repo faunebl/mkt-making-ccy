@@ -136,11 +136,11 @@ class OrderBook:
                 )
 
     def get_best_bid(self) -> tuple:
-        """Returns the best bid price and size."""
+        """Returns the best bid price, size and timestamp."""
         return (
             (self.bids["bid"][0], self.bids["size_bid"][0], self.bids["timestamp_bid"][0])
             if len(self.bids)
-            else (None, None)
+            else (None, None, None)
         )
 
     def get_best_ask(self) -> tuple:
@@ -148,7 +148,7 @@ class OrderBook:
         return (
             (self.asks["ask"][0], self.asks["size_ask"][0], self.asks["timestamp_ask"][0])
             if len(self.asks)
-            else (None, None)
+            else (None, None, None)
         )
 
     def delete_order(self, price: float, size: float, side: Literal['bid', 'ask']):
@@ -174,8 +174,8 @@ class OrderBook:
     def get_order_book(self) -> pl.DataFrame:
         """Returns the full order book as a Polars DataFrame with the correct column order."""
         # Add index columns for joining
-        asks_indexed = self.asks.with_columns(pl.Series("index", range(len(self.asks))))
-        bids_indexed = self.bids.with_columns(pl.Series("index", range(len(self.bids))))
+        asks_indexed = self.asks.with_row_index()
+        bids_indexed = self.bids.with_row_index()
 
         # Join on index to align rows
         order_book = asks_indexed.join(bids_indexed, on="index", how="outer").drop(
@@ -191,10 +191,3 @@ class OrderBook:
             pl.col("size_ask").cast(pl.Float64),
             pl.col("timestamp_ask").cast(pl.Time),
         )   
-
-class MarketOrder:
-    size: float
-    side: str
-
-    def post_market_order(orderbook: pl.DataFrame):
-        return

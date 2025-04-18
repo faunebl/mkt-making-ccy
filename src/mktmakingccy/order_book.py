@@ -2,6 +2,7 @@ import polars as pl
 from typing import Literal
 from datetime import datetime
 
+
 class OrderBook:
     def __init__(self, n_levels: int) -> None:
         """
@@ -11,11 +12,25 @@ class OrderBook:
             n_levels (int): Max levels for both bid and ask sides.
         """
         self.n_levels = n_levels
-        self.bids = pl.DataFrame({"bid": [], "size_bid": [], "timestamp_bid" : [], "client_bid": []}).cast(
-            {"bid": pl.Float64, "size_bid": pl.Float64, "timestamp_bid": pl.Time, "client_bid": pl.Boolean}
+        self.bids = pl.DataFrame(
+            {"bid": [], "size_bid": [], "timestamp_bid": [], "client_bid": []}
+        ).cast(
+            {
+                "bid": pl.Float64,
+                "size_bid": pl.Float64,
+                "timestamp_bid": pl.Time,
+                "client_bid": pl.Boolean,
+            }
         )
-        self.asks = pl.DataFrame({"ask": [], "size_ask": [], "timestamp_ask" : [], "client_ask": []}).cast(
-            {"ask": pl.Float64, "size_ask": pl.Float64, "timestamp_ask": pl.Time, "client_ask": pl.Boolean}
+        self.asks = pl.DataFrame(
+            {"ask": [], "size_ask": [], "timestamp_ask": [], "client_ask": []}
+        ).cast(
+            {
+                "ask": pl.Float64,
+                "size_ask": pl.Float64,
+                "timestamp_ask": pl.Time,
+                "client_ask": pl.Boolean,
+            }
         )
 
     def get_base_pricing(
@@ -38,8 +53,8 @@ class OrderBook:
         Returns:
             pl.DataFrame: Return the order book
         """
-        #TODO Change the bid/ask computation by adding a leverage on the size of the level
-        #Define default parameter values
+        # TODO Change the bid/ask computation by adding a leverage on the size of the level
+        # Define default parameter values
         if bid_sizes is None:
             bid_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
         else:
@@ -48,7 +63,7 @@ class OrderBook:
             ask_sizes_ok = [100_000] * 5 + [500_000] + [1_000_000] * (self.n_levels - 6)
         else:
             ask_sizes_ok = ask_sizes.copy()
-        #TODO Alpha should be a list with a different value for each level linked to the size
+        # TODO Alpha should be a list with a different value for each level linked to the size
         if alpha is None:
             alpha_ok = (sum(ask_sizes_ok) - sum(bid_sizes_ok)) / (
                 sum(ask_sizes_ok) + sum(bid_sizes_ok)
@@ -57,19 +72,28 @@ class OrderBook:
             alpha_ok = alpha
 
         # Compute Bid levels
-        #TODO prices should depend of alpha list and not the level value
+        # TODO prices should depend of alpha list and not the level value
         bid_prices = [
             fair_price * ((1 - alpha_ok * spread - spread / 2) ** (i + 1))
             for i in range(self.n_levels)
         ]
         # compute datetimes to use
-        bid_timestamps = [
-            datetime.now()
-            for _ in range(self.n_levels)
-        ]
-        
-        new_bids = pl.DataFrame({"bid": bid_prices, "size_bid": bid_sizes_ok, "timestamp_bid": bid_timestamps, "client_bid": [False]*self.n_levels}).cast(
-            {"bid": pl.Float64, "size_bid": pl.Float64, "timestamp_bid": pl.Time, "client_bid": pl.Boolean}
+        bid_timestamps = [datetime.now() for _ in range(self.n_levels)]
+
+        new_bids = pl.DataFrame(
+            {
+                "bid": bid_prices,
+                "size_bid": bid_sizes_ok,
+                "timestamp_bid": bid_timestamps,
+                "client_bid": [False] * self.n_levels,
+            }
+        ).cast(
+            {
+                "bid": pl.Float64,
+                "size_bid": pl.Float64,
+                "timestamp_bid": pl.Time,
+                "client_bid": pl.Boolean,
+            }
         )
         self.bids = (
             pl.concat([self.bids, new_bids], how="vertical")
@@ -81,13 +105,22 @@ class OrderBook:
             fair_price * ((1 - alpha_ok * spread + spread / 2) ** (i + 1))
             for i in range(self.n_levels)
         ]
-        #compute datetimes asks
-        ask_timestamps = [
-            datetime.now()
-            for _ in range(self.n_levels)
-        ]
-        new_asks = pl.DataFrame({"ask": ask_prices, "size_ask": ask_sizes_ok, "timestamp_ask": ask_timestamps, "client_ask": [False]*self.n_levels}).cast(
-            {"ask": pl.Float64, "size_ask": pl.Float64, "timestamp_ask": pl.Time, "client_ask": pl.Boolean}
+        # compute datetimes asks
+        ask_timestamps = [datetime.now() for _ in range(self.n_levels)]
+        new_asks = pl.DataFrame(
+            {
+                "ask": ask_prices,
+                "size_ask": ask_sizes_ok,
+                "timestamp_ask": ask_timestamps,
+                "client_ask": [False] * self.n_levels,
+            }
+        ).cast(
+            {
+                "ask": pl.Float64,
+                "size_ask": pl.Float64,
+                "timestamp_ask": pl.Time,
+                "client_ask": pl.Boolean,
+            }
         )
         self.asks = (
             pl.concat([self.asks, new_asks], how="vertical")
@@ -96,7 +129,13 @@ class OrderBook:
         )
         return self.get_order_book()
 
-    def update_order(self, price: float, size: float, side: Literal['bid', 'ask'], client: bool = False):
+    def update_order(
+        self,
+        price: float,
+        size: float,
+        side: Literal["bid", "ask"],
+        client: bool = False,
+    ):
         """
         Updates the order book with a new or modified order.
 
@@ -113,8 +152,20 @@ class OrderBook:
                 self.bids["bid"] != price
             )  # we remove the old bids at the same price
             if size > 0:
-                new_order = pl.DataFrame({"bid": [price], "size_bid": [size], "timestamp_bid": [datetime.now()], "client_bid": [client]}).cast(
-                    {"bid": pl.Float64, "size_bid": pl.Float64, "timestamp_bid": pl.Time, "client_bid": pl.Boolean}
+                new_order = pl.DataFrame(
+                    {
+                        "bid": [price],
+                        "size_bid": [size],
+                        "timestamp_bid": [datetime.now()],
+                        "client_bid": [client],
+                    }
+                ).cast(
+                    {
+                        "bid": pl.Float64,
+                        "size_bid": pl.Float64,
+                        "timestamp_bid": pl.Time,
+                        "client_bid": pl.Boolean,
+                    }
                 )
                 self.bids = (
                     pl.concat([self.bids, new_order], how="vertical")
@@ -127,8 +178,20 @@ class OrderBook:
                 self.asks["ask"] != price
             )  # removing old asks at the same price
             if size > 0:
-                new_order = pl.DataFrame({"ask": [price], "size_ask": [size], "timestamp_ask": [datetime.now()], "client_ask": [client]}).cast(
-                    {"ask": pl.Float64, "size_ask": pl.Float64, "timestamp_ask": pl.Time, "client_ask": pl.Boolean}
+                new_order = pl.DataFrame(
+                    {
+                        "ask": [price],
+                        "size_ask": [size],
+                        "timestamp_ask": [datetime.now()],
+                        "client_ask": [client],
+                    }
+                ).cast(
+                    {
+                        "ask": pl.Float64,
+                        "size_ask": pl.Float64,
+                        "timestamp_ask": pl.Time,
+                        "client_ask": pl.Boolean,
+                    }
                 )
                 self.asks = (
                     pl.concat([self.asks, new_order], how="vertical")
@@ -139,7 +202,12 @@ class OrderBook:
     def get_best_bid(self) -> tuple:
         """Returns the best bid price, size and timestamp."""
         return (
-            (self.bids["bid"][0], self.bids["size_bid"][0], self.bids["timestamp_bid"][0], self.bids["client_bid"][0])
+            (
+                self.bids["bid"][0],
+                self.bids["size_bid"][0],
+                self.bids["timestamp_bid"][0],
+                self.bids["client_bid"][0],
+            )
             if len(self.bids)
             else (None, None, None, None)
         )
@@ -147,12 +215,17 @@ class OrderBook:
     def get_best_ask(self) -> tuple:
         """Returns the best ask price and size."""
         return (
-            (self.asks["ask"][0], self.asks["size_ask"][0], self.asks["timestamp_ask"][0], self.asks["client_ask"][0])
+            (
+                self.asks["ask"][0],
+                self.asks["size_ask"][0],
+                self.asks["timestamp_ask"][0],
+                self.asks["client_ask"][0],
+            )
             if len(self.asks)
             else (None, None, None, None)
         )
 
-    def delete_order(self, price: float, size: float, side: Literal['bid', 'ask']):
+    def delete_order(self, price: float, size: float, side: Literal["bid", "ask"]):
         """deletes a specific order from the order book
 
         Args:
@@ -162,15 +235,19 @@ class OrderBook:
 
         Raises:
             Exception: if the side is not correctly specified as 'bid' or 'ask'
-        """        
+        """
         side = side.strip().lower()
         if side != "bid" and side != "ask":
             raise Exception("Input a valid side argument : either 'bid' or 'ask'.")
-        
-        if side == 'ask':
-            self.asks = self.asks.filter((self.asks["ask"] != price) & (self.asks["size_ask"] != size)) #removing order
-        elif side == 'bid':
-            self.bids = self.bids.filter((self.bids["bid"] != price) & (self.bids["size_bid"] != size))
+
+        if side == "ask":
+            self.asks = self.asks.filter(
+                (self.asks["ask"] != price) & (self.asks["size_ask"] != size)
+            )  # removing order
+        elif side == "bid":
+            self.bids = self.bids.filter(
+                (self.bids["bid"] != price) & (self.bids["size_bid"] != size)
+            )
 
     def get_order_book(self) -> pl.DataFrame:
         """Returns the full order book as a Polars DataFrame with the correct column order."""
@@ -192,5 +269,5 @@ class OrderBook:
             pl.col("ask").cast(pl.Float64),
             pl.col("size_ask").cast(pl.Float64),
             pl.col("timestamp_ask").cast(pl.Time),
-            pl.col("client_ask").cast(pl.Boolean)
-        )   
+            pl.col("client_ask").cast(pl.Boolean),
+        )

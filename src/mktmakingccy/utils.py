@@ -129,15 +129,15 @@ def compute_all_bid_ask(
         [
             (
                 pl.col("fair_price")
-                - pl.col("spread")
+                - pl.col("spread") 
                 * bid_asymetry
-                * (1 + volume/sum(vl.VOLUME_LIST)) #TODO change the volume by the value of the function history volume 
+                * (1 + volume/sum(vl.VOLUME_LIST))
             ).alias("bid"),
             (
                 pl.col("fair_price")
                 + pl.col("spread")
                 * (1 - bid_asymetry)
-                * (1 + volume/sum(vl.VOLUME_LIST)) #TODO change the volume by the value of the function history volume
+                * (1 + volume/sum(vl.VOLUME_LIST))
             ).alias("ask"),
         ]
     )

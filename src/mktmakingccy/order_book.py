@@ -9,6 +9,8 @@ from datetime import datetime
 # taille est générée de manière aléatoire (random.random()) : max d'une taille = 10M et faire le mapping avec les proba
 # faire le croisement entre les différents dataframe pour générer des trades
 
+#TODO remove timestamp from orderbook ???
+
 class OrderBook:
     def __init__(self, n_levels: int) -> None:
         """
@@ -133,7 +135,7 @@ class OrderBook:
             .sort("ask")
             .head(self.n_levels)
         )
-        return self.get_order_book()
+        return self # or self.get_order_book() to get the dataframe directly
 
     def update_order(
         self,

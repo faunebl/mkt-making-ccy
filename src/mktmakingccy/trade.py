@@ -16,17 +16,28 @@ import utils
 @dataclass
 class TradeHistory:
     trades: List[Dict[str, Any]] = field(default_factory=list)
+    _template: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "timestamp":None,
+            "side": None,
+            "price": None,
+            "size": None,
+            "client":None,
+        },
+        init=False,
+        repr=False
+    )
 
     def log(self, side: str, price: float, size: float, client: bool):
-        self.trades.append(
-            {
-                "timestamp": datetime.now(),
-                "side": side,
-                "price": price,
-                "size": size,
-                "client": client,
-            }
-        )
+        entry = self._template.copy()
+        entry.update({
+            "timestamp": datetime.now(),
+            "side":side,
+            "price":price,
+            "size": size,
+            "client": client,
+        })
+        self.trades.append(entry)
 
 
 history = TradeHistory()
@@ -42,7 +53,7 @@ class Trade:
                 "The side argument should be either 'buy' or 'sell'. \nPlease input a valid argument"
             )
 
-    def update_orderbook_with_trade(self, orderbook: OrderBook): #TODO ajouter datetime et dataframe de historical fair price ?
+    def update_orderbook_with_trade(self, orderbook: OrderBook, fair_price: float, trade_date: datetime = None): #TODO ajouter datetime?? enlever timestamp de l'orderbook??
         if self.side == "buy":
             # making sure the trade isnt bigger than the whole order book
             max_size = orderbook.asks.select("size_ask").sum().to_series().to_list()[0]
@@ -64,7 +75,7 @@ class Trade:
                     client=client,
                 )
                 if not client:
-                    new_ask = utils.compute_one_new_ask(fair_price=0.0, old_ask=best_price, size=self.size) #TODO récupérer le fair price
+                    new_ask = utils.compute_one_new_ask(fair_price=fair_price, old_ask=best_price, size=self.size) #TODO récupérer le fair price
                     orderbook.update_order(
                         price=new_ask,
                         size= self.size,
@@ -76,7 +87,7 @@ class Trade:
                     price=best_price, size=best_size, side="ask"
                 )  # delete best order
                 if not client:
-                    new_ask = utils.compute_one_new_ask(fair_price=0.0, old_ask=best_price, size=best_size) #TODO récupérer le fair price
+                    new_ask = utils.compute_one_new_ask(fair_price=fair_price, old_ask=best_price, size=best_size) #TODO récupérer le fair price
                     orderbook.update_order(
                         price=new_ask,
                         size= best_size,
@@ -106,7 +117,7 @@ class Trade:
                     client=client,
                 )  # timestamp updates automatically
                 if not client:
-                    new_bid = utils.compute_one_new_bid(fair_price=0.0, old_ask=best_price, size=self.size) #TODO récupérer le fair price
+                    new_bid = utils.compute_one_new_bid(fair_price=fair_price, old_ask=best_price, size=self.size) #TODO récupérer le fair price
                     orderbook.update_order(
                         price=new_bid,
                         size= self.size,
@@ -116,7 +127,7 @@ class Trade:
             else:
                 orderbook.delete_order(price=best_price, size=best_size, side="bid")
                 if not client:
-                    new_bid = utils.compute_one_new_bid(fair_price=0.0, old_ask=best_price, size=best_size) #TODO récupérer le fair price
+                    new_bid = utils.compute_one_new_bid(fair_price=fair_price, old_ask=best_price, size=best_size) #TODO récupérer le fair price
                     orderbook.update_order(
                         price=new_bid,
                         size= best_size,
@@ -231,3 +242,4 @@ class MarketOrder:
 class LimitOrder(MarketOrder):
     def __init__(self, size, side):
         super().__init__(size, side)
+        #TODO

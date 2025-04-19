@@ -3,7 +3,9 @@ import values as vl
 import numpy as np
 import polars as pl
 import random
+import math
 from trade import TradeHistory
+from typing import Literal
 
 
 #TODO Changer la dynamic pour faire apparaitre les taux d'interets ????
@@ -186,13 +188,13 @@ def generate_market_order(
     ])
 
     df = df.with_columns([
-        (base_intensity * pl.col("delta_bid").map_elements(lambda x: np.exp(-spread_sensibility * x))).alias("lambda_bid"),
-        (base_intensity * pl.col("delta_ask").map_elements(lambda x: np.exp(-spread_sensibility * x))).alias("lambda_ask"),
+        (base_intensity * pl.col("delta_bid").map_elements(lambda x: np.exp(-spread_sensibility * x), return_dtype=pl.Float64)).alias("lambda_bid"),
+        (base_intensity * pl.col("delta_ask").map_elements(lambda x: np.exp(-spread_sensibility * x), return_dtype=pl.Float64)).alias("lambda_ask"),
     ])
 
     df = df.with_columns([
-        (1 - pl.col("lambda_bid").map_elements(lambda x: np.exp(-x))).alias("prob_trade_bid"),
-        (1 - pl.col("lambda_ask").map_elements(lambda x: np.exp(-x))).alias("prob_trade_ask"),
+        (1 - pl.col("lambda_bid").map_elements(lambda x: np.exp(-x), return_dtype=pl.Float64)).alias("prob_trade_bid"),
+        (1 - pl.col("lambda_ask").map_elements(lambda x: np.exp(-x), return_dtype=pl.Float64)).alias("prob_trade_ask"),
     ])
 
     return df.select(historical_bid_ask.columns + ["prob_trade_bid", "prob_trade_ask"])
@@ -239,3 +241,29 @@ def track_pnl(
         )
     result_df = pl.DataFrame(records)
     return result_df
+
+
+
+def adjust_probability(
+    base_p: float,
+    volume: float,
+    *,
+    method: Literal['exp', 'hill', 'logistic'] = 'hill',
+    scale: float = 1e6,
+    exponent: float = 1.0,
+    mid: float = 1e6,
+    slope: float = 1.0,
+) -> float:
+    if method == "exp":
+        # exponential decay
+        weight = math.exp(-volume/scale)
+    elif method == "hill":
+        # rational (Hill) function
+        weight = 1 / (1 + (volume/scale)**exponent)
+    elif method == "logistic":
+        # logistic drop
+        weight = 1 / (1 + math.exp(slope * (volume - mid)))
+    else:
+        raise ValueError(f"unknown method {method!r}")
+    return base_p * weight
+

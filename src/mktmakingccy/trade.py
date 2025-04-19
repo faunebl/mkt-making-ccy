@@ -2,6 +2,7 @@ from order_book import OrderBook
 from datetime import datetime
 from typing import Literal, List, Dict, Any
 from dataclasses import dataclass, field
+import utils
 
 #TODO: check if client = True is well implemented 
 #TODO: FX PNL: with history: if inventory from yesterday + FX went from 1 to 2, now PNL is divided by 2 etc (PNL is expressed in $)
@@ -12,9 +13,9 @@ from dataclasses import dataclass, field
 # réutiliser la fonction et appliqué le masque sur la 2e h de la journée plutot que juste la 1ere 
 # petite fonction de raph : génère que 1 seul prix (avec taille du trade etc)
 
+@dataclass
 class TradeHistory:
-    def __init__(self):
-        self.trades = []
+    trades: List[Dict[str, Any]] = field(default_factory=list)
 
     def log(self, side: str, price: float, size: float, client: bool):
         self.trades.append(
@@ -41,7 +42,7 @@ class Trade:
                 "The side argument should be either 'buy' or 'sell'. \nPlease input a valid argument"
             )
 
-    def update_orderbook_with_trade(self, orderbook: OrderBook):
+    def update_orderbook_with_trade(self, orderbook: OrderBook): #TODO ajouter datetime et dataframe de historical fair price ?
         if self.side == "buy":
             # making sure the trade isnt bigger than the whole order book
             max_size = orderbook.asks.select("size_ask").sum().to_series().to_list()[0]
@@ -62,10 +63,26 @@ class Trade:
                     side="ask",
                     client=client,
                 )
+                if not client:
+                    new_ask = utils.compute_one_new_ask(fair_price=0.0, old_ask=best_price, size=self.size) #TODO récupérer le fair price
+                    orderbook.update_order(
+                        price=new_ask,
+                        size= self.size,
+                        side='ask',
+                        client=False
+                    )
             else:
                 orderbook.delete_order(
                     price=best_price, size=best_size, side="ask"
                 )  # delete best order
+                if not client:
+                    new_ask = utils.compute_one_new_ask(fair_price=0.0, old_ask=best_price, size=best_size) #TODO récupérer le fair price
+                    orderbook.update_order(
+                        price=new_ask,
+                        size= best_size,
+                        side='ask',
+                        client=False
+                    )
                 self.size -= best_size  # updating the size
                 orderbook = self.update_orderbook_with_trade(
                     orderbook
@@ -88,8 +105,24 @@ class Trade:
                     side="bid",
                     client=client,
                 )  # timestamp updates automatically
+                if not client:
+                    new_bid = utils.compute_one_new_bid(fair_price=0.0, old_ask=best_price, size=self.size) #TODO récupérer le fair price
+                    orderbook.update_order(
+                        price=new_bid,
+                        size= self.size,
+                        side='bid',
+                        client=False
+                    )
             else:
                 orderbook.delete_order(price=best_price, size=best_size, side="bid")
+                if not client:
+                    new_bid = utils.compute_one_new_bid(fair_price=0.0, old_ask=best_price, size=best_size) #TODO récupérer le fair price
+                    orderbook.update_order(
+                        price=new_bid,
+                        size= best_size,
+                        side='bid',
+                        client=False
+                    )
                 self.size -= best_size
                 orderbook = self.update_orderbook_with_trade()
 

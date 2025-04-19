@@ -75,15 +75,11 @@ def simulate_fair_price(
 
 
 def compute_volume_history(trade_history: TradeHistory, date: date) -> float:
-    init_vol = sum(vl.VOLUME_LIST)
-    to_add = (
+    return (
         pl.DataFrame(trade_history.trades)
         .filter(pl.col('timestamp').dt.date().eq(date))
-        .with_columns(pl.when(pl.col('side').eq('buy')).then(-1).otherwise(1).alias('vol_effect'))
-        .with_columns(pl.col('size').mul('vol_effect'))
         .select('size').sum().item()
     )
-    return init_vol + to_add
 
 
 def expanding_std(series: np.ndarray) -> list:
@@ -206,7 +202,7 @@ def generate_market_order(
 def track_pnl(
     historical_fair_price: pl.DataFrame,
     historical_trade: pl.DataFrame,
-    inventory,
+    inventory: int,
     start_record_time: datetime = None,
     end_record_time: datetime = None,
 ) -> pl.DataFrame:
@@ -221,11 +217,11 @@ def track_pnl(
     total_pnl = 0
     records = []
 
-    for trade_row in masked_historical_trade.iter_rows():
-        action = trade_row[0]
-        trade_price = trade_row[1]
-        quantity = trade_row[2]
-        trade_date = trade_row[3]
+    for trade_row in masked_historical_trade.iter_rows(named=True):
+        action = trade_row["side"]
+        trade_price = trade_row["price"]
+        quantity = trade_row["size"]
+        trade_date = trade_row["timestamp"]
         closest_price_row = (
             historical_fair_price.filter(pl.col("timestamp") <= trade_date)
             .sort("timestamp", descending=True)
@@ -235,7 +231,7 @@ def track_pnl(
 
         sign = 1 if action == "buy" else -1
         inventory -= sign * quantity
-        pnl = sign * quantity * (trade_price - price)
+        pnl = sign * (quantity / price) * (trade_price - price) #juste diviser par price pour PNL en $ ??
         total_pnl += pnl
 
         records.append(

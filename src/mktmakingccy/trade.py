@@ -3,10 +3,18 @@ from datetime import datetime
 from typing import Literal, List, Dict, Any
 from dataclasses import dataclass, field
 
+#TODO: check if client = True is well implemented 
+#TODO: FX PNL: with history: if inventory from yesterday + FX went from 1 to 2, now PNL is divided by 2 etc (PNL is expressed in $)
+# rediviser partie existante du track PNL par le FX du jour (diviser par fair price de xyz)
+#TODO: rebalancing de l'order book (refill qd trade et reset à la fin de chaque journée -> recupérer le dataframe du bid ask de tt les jour)
+# masque pour récupérer juste la premiere heure de la journée
+# faire tourner la fonction 15 fois car prix différent pour chaque niveau 
+# réutiliser la fonction et appliqué le masque sur la 2e h de la journée plutot que juste la 1ere 
+# petite fonction de raph : génère que 1 seul prix (avec taille du trade etc)
 
-@dataclass
 class TradeHistory:
-    trades: List[Dict[str, Any]] = field(default_factory=list)
+    def __init__(self):
+        self.trades = []
 
     def log(self, side: str, price: float, size: float, client: bool):
         self.trades.append(

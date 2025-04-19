@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, date
 import values as vl
 import numpy as np
 import polars as pl
 import random
+from trade import TradeHistory
 
 
 #TODO Changer la dynamic pour faire apparaitre les taux d'interets ????
@@ -73,9 +74,16 @@ def simulate_fair_price(
     return pl.DataFrame({"timestamp": timestamps, "Fair Price": prices})
 
 
-def compute_volume_history(trade_history, date) -> float:
-    #TODO Faire une fonction qui va avec le trade history calculer le volume traiter durant date pour return le volume total traité
-    pass
+def compute_volume_history(trade_history: TradeHistory, date: date) -> float:
+    init_vol = sum(vl.VOLUME_LIST)
+    to_add = (
+        pl.DataFrame(trade_history.trades)
+        .filter(pl.col('timestamp').dt.date().eq(date))
+        .with_columns(pl.when(pl.col('side').eq('buy')).then(-1).otherwise(1).alias('vol_effect'))
+        .with_columns(pl.col('size').mul('vol_effect'))
+        .select('size').sum().item()
+    )
+    return init_vol + to_add
 
 
 def expanding_std(series: np.ndarray) -> list:
@@ -177,8 +185,8 @@ def generate_market_order(
     df = historical_bid_ask.clone()
 
     df = df.with_columns([
-        ((pl.col("fair_price") - pl.col("bid")) / 2).alias("delta_bid"),
-        ((pl.col("ask") - pl.col("fair_price")) / 2).alias("delta_ask"),
+        ((pl.col("fair_price") - pl.col("bid"))).alias("delta_bid"),
+        ((pl.col("ask") - pl.col("fair_price"))).alias("delta_ask"),
     ])
 
     df = df.with_columns([
@@ -187,8 +195,8 @@ def generate_market_order(
     ])
 
     df = df.with_columns([
-        (1 - pl.col("lambda_bid").map_elements(lambda l: np.exp(-l))).alias("prob_trade_bid"),
-        (1 - pl.col("lambda_ask").map_elements(lambda l: np.exp(-l))).alias("prob_trade_ask"),
+        (1 - pl.col("lambda_bid").map_elements(lambda x: np.exp(-x))).alias("prob_trade_bid"),
+        (1 - pl.col("lambda_ask").map_elements(lambda x: np.exp(-x))).alias("prob_trade_ask"),
     ])
 
     return df.select(historical_bid_ask.columns + ["prob_trade_bid", "prob_trade_ask"])

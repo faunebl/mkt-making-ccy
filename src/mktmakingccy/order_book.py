@@ -2,6 +2,12 @@ import polars as pl
 from typing import Literal
 from datetime import datetime
 
+#TODO: utiliser la fct qui créer la proba de trade pour créer une fct qui génère l'instance de market order en fct de la proba 
+# resultat final: colonne appelée market order ou chaque élément est une instace de market order _
+# ou en fct de la proba ça va dire s'il y a eu un market order ou pas _
+# avec petite proba sur les grosses tailles et grande proba sur les petites tailles 
+# taille est générée de manière aléatoire (random.random()) : max d'une taille = 10M et faire le mapping avec les proba
+# faire le croisement entre les différents dataframe pour générer des trades
 
 class OrderBook:
     def __init__(self, n_levels: int) -> None:
@@ -18,7 +24,7 @@ class OrderBook:
             {
                 "bid": pl.Float64,
                 "size_bid": pl.Float64,
-                "timestamp_bid": pl.Time,
+                "timestamp_bid": pl.Datetime,
                 "client_bid": pl.Boolean,
             }
         )
@@ -28,13 +34,14 @@ class OrderBook:
             {
                 "ask": pl.Float64,
                 "size_ask": pl.Float64,
-                "timestamp_ask": pl.Time,
+                "timestamp_ask": pl.Datetime,
                 "client_ask": pl.Boolean,
             }
         )
 
     def get_base_pricing(
         self,
+        base_date: datetime,
         fair_price: float,
         spread: float,
         alpha: float = None,
@@ -77,7 +84,7 @@ class OrderBook:
             for i in range(self.n_levels)
         ]
         # compute datetimes to use
-        bid_timestamps = [datetime.now() for _ in range(self.n_levels)]
+        bid_timestamps = [base_date for _ in range(self.n_levels)]
 
         new_bids = pl.DataFrame(
             {
@@ -90,7 +97,7 @@ class OrderBook:
             {
                 "bid": pl.Float64,
                 "size_bid": pl.Float64,
-                "timestamp_bid": pl.Time,
+                "timestamp_bid": pl.Datetime,
                 "client_bid": pl.Boolean,
             }
         )
@@ -105,7 +112,7 @@ class OrderBook:
             for i in range(self.n_levels)
         ]
         # compute datetimes asks
-        ask_timestamps = [datetime.now() for _ in range(self.n_levels)]
+        ask_timestamps = [base_date for _ in range(self.n_levels)]
         new_asks = pl.DataFrame(
             {
                 "ask": ask_prices,
@@ -117,7 +124,7 @@ class OrderBook:
             {
                 "ask": pl.Float64,
                 "size_ask": pl.Float64,
-                "timestamp_ask": pl.Time,
+                "timestamp_ask": pl.Datetime,
                 "client_ask": pl.Boolean,
             }
         )
@@ -162,7 +169,7 @@ class OrderBook:
                     {
                         "bid": pl.Float64,
                         "size_bid": pl.Float64,
-                        "timestamp_bid": pl.Time,
+                        "timestamp_bid": pl.Datetime,
                         "client_bid": pl.Boolean,
                     }
                 )
@@ -188,7 +195,7 @@ class OrderBook:
                     {
                         "ask": pl.Float64,
                         "size_ask": pl.Float64,
-                        "timestamp_ask": pl.Time,
+                        "timestamp_ask": pl.Datetime,
                         "client_ask": pl.Boolean,
                     }
                 )
@@ -262,11 +269,11 @@ class OrderBook:
         # Ensure correct column order & type handling
         return order_book.select(
             pl.col("client_bid").cast(pl.Boolean),
-            pl.col("timestamp_bid").cast(pl.Time),
+            pl.col("timestamp_bid").cast(pl.Datetime),
             pl.col("size_bid").cast(pl.Float64),
             pl.col("bid").cast(pl.Float64),
             pl.col("ask").cast(pl.Float64),
             pl.col("size_ask").cast(pl.Float64),
-            pl.col("timestamp_ask").cast(pl.Time),
+            pl.col("timestamp_ask").cast(pl.Datetime),
             pl.col("client_ask").cast(pl.Boolean),
         )
